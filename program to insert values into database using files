@@ -1,0 +1,55 @@
+import java.io.*;
+import java.sql.*;
+import java.util.*;
+
+public class InsertFileExecutorduplicatesintofile {
+    public static void main(String[] args) {
+        String jdbcURL = "jdbc:mysql://localhost:3306/db"; // Replace with your DB
+        String dbUser = "root"; // Replace with your username
+        String dbPassword = "system"; // Replace with your password
+        String inputFilePath ="D:\\582\\insert.txt"; // Input SQL file
+        String duplicateFilePath = "D:\\582\\duplicates.txt"; // Output for duplicates
+
+        // Prepare file writer for duplicates
+        try (Connection connection = DriverManager.getConnection(jdbcURL, dbUser, dbPassword);
+             Statement statement = connection.createStatement();
+             BufferedWriter dupWriter = new BufferedWriter(new FileWriter(duplicateFilePath))) {
+
+            System.out.println("Connected to MySQL Database.");
+
+            List<String> sqlCommands = readSQLFile(inputFilePath);
+            for (String command : sqlCommands) {
+                if (!command.trim().isEmpty()) {
+                    try {
+                        statement.execute(command);
+                        System.out.println("Executed: " + command);
+                    } catch (SQLIntegrityConstraintViolationException dupEx) {
+                        System.out.println("Duplicate entry detected: " + command);
+                        dupWriter.write(command.trim() + ";");
+                        dupWriter.newLine();
+                    } catch (SQLException sqlEx) {
+                        System.out.println("SQL error in command: " + command);
+                        sqlEx.printStackTrace();
+                    }
+                }
+            }
+
+            System.out.println("All SQL commands processed. Duplicates saved to: " + duplicateFilePath);
+
+        } catch (SQLException | IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // Read SQL commands from file (split by semicolon)
+    public static List<String> readSQLFile(String filePath) throws IOException {
+        StringBuilder contentBuilder = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                contentBuilder.append(line).append("\n");
+            }
+        }
+        return Arrays.asList(contentBuilder.toString().split(";"));
+    }
+}
